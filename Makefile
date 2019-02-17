@@ -1,6 +1,8 @@
-all:admin client
+all:Admin Client
 
-admin: admin.cpp
-	g++ -o admin admin.cpp
-client: client.cpp
-	g++ -o client client.cpp 
+Admin: admin.cpp
+	g++  -lpthread -o Admin admin.cpp -std=c++11
+Client: client.cpp
+	g++ -o Client client.cpp -std=c++11
+clean:
+	rm Admin Client

@@ -7,41 +7,31 @@
 #include <stdlib.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <regex>
 #include <vector>
-
+#include <fcntl.h>
+#define bzero(b,len) (memset((b), '\0', (len)), (void) 0)
 using namespace std;
 
 void error(const char *msg){
+  /**
+  *error handle function
+  */
   perror(msg);
   exit(1);
 }
 
-bool check_filename(string filename){
-  //charactor !@#$%^&*(_ ) are not allowed
-  regex format("^[1-9][0-9][0-9]\\s[a-zA-Z\\.]{8}(.*)");
-  return regex_match(filename,format);
 
-}
-bool check_exit(string exit){
-  regex format("nullfile");
-  return regex_match(exit,format);
-}
+void toserver_output(char* buffer,string client_id,char* filename){
 
-void toserver_output(char* buffer,string client_id,char* filename,string client_pn){
-  //change to write (Client ID, file name, client socket descriptor, client port number)
-  //usage:
-  //char buffer[256];
-  //toserver_output(buffer,"client_id",filename,"20","client_pn");
-    char chararray[50];
-    int n = 0;
+  /**
+   * construct out put to server
+   * buffer output : Client-ID space file-name
+   * @param buffer char array to send in socket
+   */
     strcpy(buffer,client_id.c_str());
     strcat(buffer," ");
     strcat(buffer,filename);
-    strcat(buffer," ");
-    strcat(buffer,client_pn.c_str());
     strcat(buffer,"\0");
-    //cout<<"client output :"<<buffer<<endl;
 }
 
 int main(int argc,char* argv[]){
@@ -50,6 +40,9 @@ int main(int argc,char* argv[]){
   struct hostent *server;
   int create_socket, port_no;
   string client_id;
+  int return_result;// return result holds result from server
+  char buffer[256];
+  bzero(buffer,256);
 
   if(argc < 4){
     //print here error
@@ -61,7 +54,7 @@ int main(int argc,char* argv[]){
   port_no = atoi(argv[3]);
   cout<<port_no<<endl;
   /*
-  int socket (int family, int type, int protocol);
+  *int socket (int family, int type, int protocol);
   */
   create_socket = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -83,48 +76,36 @@ int main(int argc,char* argv[]){
  if (connect(create_socket, (struct sockaddr*) &server_address, sizeof(server_address)) < 0) {
     error("ERROR connecting here in client");
  }
- //send_conn_msg(create_socket,client_id);
-
  while(1){
-   string line = "";
-   char buffer[50];
-   bzero(buffer,50);
-   int n = 0;
-   char c;
+     string line = "";
+     string get_line;
+     int n = 0;
+     char c;
+     char read_buffer[256];
+    //read input while not read
+    //write file name to computer process
+    char output_buffer[256];//output_buffer holds msg to write to servevr
+    //buffer holds stdin break while \n
+     bzero(buffer,256);
+     cout<<"enter file name : ";
+     cin>>get_line;
+     //getline(cin,get_line);
 
-   cout<<"enter file name :"<<endl;
-   while ((c = getchar()) != '\n'){
-     buffer[n++] = c;
-   }
-   //getline(cin,line);
-   line = string(buffer,n);
+     if(strncmp(get_line.c_str(),"nullfile",7) == 0){
+       write(create_socket,"nullfile",7);
+       break;
+     }
+     strcpy(buffer,get_line.c_str());
+     toserver_output(output_buffer,client_id,buffer);
+     write(create_socket,output_buffer,256);
+     get_line = "";
+     //output result if read
+    return_result = read(create_socket, read_buffer, 256);
+    if(return_result < 0){
+      error("can not read from server");
+    }
+    cout<<read_buffer<<endl;
+    bzero(read_buffer,256);
 
-   if(check_exit(line)){
-     write(create_socket,"client exit",12);
-     break;
-   }
-   /*
-   else if(check_filename(line)!=1){
-     cout<<"wrong file name format"<<endl;
-     cout<<"length:"<<sizeof(line)<<endl;
-     cout<<line<<endl;
-   }*/
-   //else if(read(create_socket,buffer,256)>0){
-     //if reasult is ready, read result
-     //cout<<buffer<<endl;
-     //bzero(buffer,50);
-   //}
-   else{
-  //change to write (Client ID, file name, client socket descriptor, client port number)
-  char output_buffer[256];
-   toserver_output(output_buffer,client_id,buffer,argv[3]);
-   write(create_socket,output_buffer,256);
-   bzero(buffer, 50);
-   read(create_socket, buffer, 50);
-   cout<<"server :"<< buffer<<endl;
-   bzero(output_buffer,256);
- }
-}
-close(create_socket);//close socket when exit client
-exit(0);
+  }
 }
